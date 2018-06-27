@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2035
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.Socket", "IOCP.Socket\IOCP.Socket.csproj", "{94173CBC-25DD-4AAB-9E45-33D83C99D133}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.SocketCore", "IOCP.Socket\IOCP.SocketCore.csproj", "{94173CBC-25DD-4AAB-9E45-33D83C99D133}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.SocketCore.TCPServer.Test", "IOCP.SocketCore.TCPServer.Test\IOCP.SocketCore.TCPServer.Test.csproj", "{B6A29134-C873-4D47-9587-36DC4C2FB185}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{94173CBC-25DD-4AAB-9E45-33D83C99D133}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94173CBC-25DD-4AAB-9E45-33D83C99D133}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94173CBC-25DD-4AAB-9E45-33D83C99D133}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6A29134-C873-4D47-9587-36DC4C2FB185}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B6A29134-C873-4D47-9587-36DC4C2FB185}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B6A29134-C873-4D47-9587-36DC4C2FB185}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B6A29134-C873-4D47-9587-36DC4C2FB185}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
