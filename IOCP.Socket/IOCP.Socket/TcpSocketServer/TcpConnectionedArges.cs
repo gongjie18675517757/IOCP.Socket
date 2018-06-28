@@ -1,5 +1,5 @@
 ﻿using System;
-namespace IOCP.SocketCore.SocketServer
+namespace IOCP.SocketCore.TcpSocketServer
 {
     public class TcpConnectionedArges : EventArgs
     {

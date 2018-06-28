@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-namespace IOCP.SocketCore.SocketServer
+namespace IOCP.SocketCore.TcpSocketServer
 {
     /// <summary>
     /// TCP客户端连接
     /// </summary>
     public class TcpConnection
     {
-        private readonly ITcpServer tcpServer;
+        private  ITcpServer tcpServer;
         private bool connectioned=true;
 
         /// <summary>
@@ -56,14 +56,14 @@ namespace IOCP.SocketCore.SocketServer
         private void TcpServer_Disconnected(object sender, TcpConnectionedArges e)
         {
             Disconnected?.Invoke(this, e);
-        }
-
+            tcpServer = null;
+        } 
 
         /// <summary>
         /// 发送数据
         /// </summary>
         /// <param name="bytes"></param>
-        public void Send(byte[] bytes) => tcpServer.SendAsync(this, bytes);
+        public void Send(byte[] bytes) =>  tcpServer?.SendAsync(this, bytes);
     }
 
 }

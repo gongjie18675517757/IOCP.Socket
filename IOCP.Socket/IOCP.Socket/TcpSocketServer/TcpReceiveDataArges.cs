@@ -1,4 +1,4 @@
-﻿namespace IOCP.SocketCore.SocketServer
+﻿namespace IOCP.SocketCore.TcpSocketServer
 {
     /// <summary>
     /// 收到的数据

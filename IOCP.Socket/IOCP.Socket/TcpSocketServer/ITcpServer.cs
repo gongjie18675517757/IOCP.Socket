@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace IOCP.SocketCore.SocketServer
+namespace IOCP.SocketCore.TcpSocketServer
 {
     internal interface ITcpServer:IServer
     {
@@ -8,6 +8,11 @@ namespace IOCP.SocketCore.SocketServer
         /// 已连接的数量
         /// </summary>
         int ConnectionCount { get; }
+
+        /// <summary>
+        /// 连接队列长度
+        /// </summary>
+        int Backlog { get; }  
 
         /// <summary>
         /// 发送数据

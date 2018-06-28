@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-namespace IOCP.SocketCore.SocketServer
+namespace IOCP.SocketCore.TcpSocketServer
 {
     /// <summary>
     /// TCP服务
@@ -15,11 +15,19 @@ namespace IOCP.SocketCore.SocketServer
         private int isRun;
         private readonly int bufferLength;
         private ConcurrentQueue<SocketAsyncEventArgs> queue = new ConcurrentQueue<SocketAsyncEventArgs>();
+
+       
+
         private int connectionCount;
         private int sendBytesCount;
         private int receiveBytesCount;
         private DateTime startTime;
         private DateTime stopTime;
+
+        /// <summary>
+        /// 连接队列
+        /// </summary>
+        public int Backlog { get; private set; }
 
         /// <summary>
         /// 已连接的数量
@@ -55,8 +63,11 @@ namespace IOCP.SocketCore.SocketServer
         /// <summary>
         /// 是否正在运行
         /// </summary>
-        public bool IsRun => isRun==1;
+        public bool IsRun => isRun == 1;
 
+        /// <summary>
+        /// 本地终结点
+        /// </summary>
         public EndPoint LocalEndPoint => listen?.LocalEndPoint;
 
         /// <summary>
@@ -82,23 +93,24 @@ namespace IOCP.SocketCore.SocketServer
         /// <summary>
         /// 收到数据
         /// </summary>
-        public event EventHandler<TcpReceiveDataArges> ReceiveData; 
+        public event EventHandler<TcpReceiveDataArges> ReceiveData;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="bufferLength">每个Receive的SocketAsyncEventArgs缓冲区大小</param>
-        public TcpServer(int bufferLength=1024)
+        public TcpServer(int bufferLength = 1024, int backlog = 100)
         {
             this.bufferLength = bufferLength;
+            Backlog = backlog;
         }
 
         /// <summary>
         /// 开始监听
         /// </summary>
         /// <param name="port"></param>
-        public void Start(int port=0)
-        {
+        public void Start(int port = 0)
+        { 
             connectionCount = 0;
             sendBytesCount = 0;
             receiveBytesCount = 0;
@@ -111,7 +123,7 @@ namespace IOCP.SocketCore.SocketServer
                 NoDelay = true
             };
             listen.Bind(local);
-            listen.Listen(1000);
+            listen.Listen(Backlog);
 
             isRun = 1;
             ServerStartRun?.Invoke(this, new EventArgs());
@@ -154,6 +166,11 @@ namespace IOCP.SocketCore.SocketServer
                 socketReceiveAsync.Completed += SocketAsync_Receive_Completed;
                 socketReceiveAsync.SetBuffer(new byte[bufferLength], 0, bufferLength);
             }
+
+            //var socketReceiveAsync = new SocketAsyncEventArgs();
+            //socketReceiveAsync.Completed += SocketAsync_Receive_Completed;
+            //socketReceiveAsync.SetBuffer(new byte[bufferLength], 0, bufferLength);
+
             connection.ReceiveSocketAsync = socketReceiveAsync;
             socketReceiveAsync.UserToken = connection;
             StartReceive(connection);
@@ -166,10 +183,10 @@ namespace IOCP.SocketCore.SocketServer
         /// <param name="bytes"></param>
         public void SendAsync(TcpConnection connection, byte[] bytes)
         {
-            if (!IsRun && listen!=null && connection.Connectioned)
+            if (!IsRun && listen != null && connection.Connectioned)
                 return;
             SocketAsyncEventArgs socketSendAsync;
-            if (!queue.TryDequeue(out  socketSendAsync))
+            if (!queue.TryDequeue(out socketSendAsync))
             {
                 socketSendAsync = new SocketAsyncEventArgs();
                 socketSendAsync.Completed += SocketSendAsync_Send_Completed;
@@ -196,12 +213,13 @@ namespace IOCP.SocketCore.SocketServer
         {
             e.UserToken = null;
             queue.Enqueue(e);
+            Interlocked.Add(ref sendBytesCount, e.Buffer.Length);
         }
 
         /*开始接收数据*/
         private void StartReceive(TcpConnection connection)
         {
-            if (!IsRun && listen != null)
+            if (!IsRun && listen != null && connection.Connectioned)
                 return;
 
             if (!connection.Socket.ReceiveAsync(connection.ReceiveSocketAsync))
@@ -219,6 +237,7 @@ namespace IOCP.SocketCore.SocketServer
                 {
                     var connection = (TcpConnection)e.UserToken;
                     var bytes = new byte[e.BytesTransferred];
+                    Interlocked.Add(ref receiveBytesCount, bytes.Length);
                     Buffer.BlockCopy(e.Buffer, e.Offset, bytes, 0, bytes.Length);
                     StartReceive(connection);
                     ReceiveData?.Invoke(this, new TcpReceiveDataArges(connection, bytes));
@@ -226,7 +245,10 @@ namespace IOCP.SocketCore.SocketServer
             }
             else
             {
-                OnConnectionClose((TcpConnection)e.UserToken);
+                OnConnectionClose((TcpConnection)e.UserToken); 
+                e.AcceptSocket = null;
+                e.UserToken = null;
+                queue.Enqueue(e);
             }
         }
 
@@ -235,14 +257,14 @@ namespace IOCP.SocketCore.SocketServer
         {
             Interlocked.Decrement(ref connectionCount);
 
-            connection.Socket.Shutdown(SocketShutdown.Both);
-            connection.Socket.Close();
-
-            connection.ReceiveSocketAsync.AcceptSocket = null;
-            connection.ReceiveSocketAsync.UserToken = null;
-
-
-            queue.Enqueue(connection.ReceiveSocketAsync);
+            try
+            {
+                connection.Socket.Shutdown(SocketShutdown.Both);
+                connection.Socket.Close();
+            }
+            catch (Exception)
+            {
+            } 
 
             Disconnected?.Invoke(this, new TcpConnectionedArges(connection));
         }
@@ -252,10 +274,17 @@ namespace IOCP.SocketCore.SocketServer
         /// </summary>
         public void Stop()
         {
-            if(IsRun)
-                Interlocked.Decrement(ref isRun);  
-            listen?.Shutdown(SocketShutdown.Both);
-            listen?.Close();
+            if (IsRun)
+                Interlocked.Decrement(ref isRun);
+            try
+            {
+                listen?.Close();
+                listen?.Shutdown(SocketShutdown.Both);
+            }
+            catch (Exception)
+            { 
+            }
+            
             listen = null;
 
             stopTime = DateTime.Now;

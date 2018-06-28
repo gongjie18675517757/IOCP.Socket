@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 
 namespace IOCP.SocketCore
@@ -27,6 +28,11 @@ namespace IOCP.SocketCore
         bool IsRun { get; }
 
         /// <summary>
+        /// 本地终结点
+        /// </summary>
+        EndPoint LocalEndPoint { get; }
+
+        /// <summary>
         /// 开始运行
         /// </summary>
         /// <param name="port"></param>
@@ -36,5 +42,16 @@ namespace IOCP.SocketCore
         /// 停止运行
         /// </summary>
         void Stop();
+
+
+        /// <summary>
+        /// 服务开始运行
+        /// </summary>
+        event EventHandler ServerStartRun;
+
+        /// <summary>
+        /// 服务停止运行
+        /// </summary>
+        event EventHandler ServerStopRun;
     }
 }
