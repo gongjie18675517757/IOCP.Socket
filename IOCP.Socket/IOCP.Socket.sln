@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.SocketCore", "IOCP.Soc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.SocketCore.TCPServerTest", "IOCP.SocketCore.TCPServer.Test\IOCP.SocketCore.TCPServerTest.csproj", "{B6A29134-C873-4D47-9587-36DC4C2FB185}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.SocketCore.UDPServerTest", "IOCP.SocketCore.UDPServerTest\IOCP.SocketCore.UDPServerTest.csproj", "{80E5EA10-2DCA-4C58-9644-E250DE57DFDE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.SocketCore.UDPServerTest", "IOCP.SocketCore.UDPServerTest\IOCP.SocketCore.UDPServerTest.csproj", "{80E5EA10-2DCA-4C58-9644-E250DE57DFDE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

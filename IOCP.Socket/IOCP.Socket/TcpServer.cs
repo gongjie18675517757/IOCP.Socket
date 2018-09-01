@@ -4,28 +4,34 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-namespace IOCP.SocketCore.TcpSocketServer
+namespace IOCP.SocketCore
 {
     /// <summary>
     /// TCP服务
     /// </summary>
-    public class TcpServer : ITcpServer
+    public class TcpServer
     {
         private Socket listen;
-        private int isRun;
+        private volatile int isRun;
         private readonly int bufferLength;
-        private ConcurrentQueue<SocketAsyncEventArgs> queue = new ConcurrentQueue<SocketAsyncEventArgs>();
 
-       
+        /// <summary>
+        /// 缓存异步套接字字段[接收]
+        /// </summary>
+        private ConcurrentQueue<SocketAsyncEventArgs> receiveAsyncEventQueue
+            = new ConcurrentQueue<SocketAsyncEventArgs>();
 
-        private int connectionCount;
-        private int sendBytesCount;
-        private int receiveBytesCount;
+        private ConcurrentQueue<SocketAsyncEventArgs> sendAsyncEventQueue
+          = new ConcurrentQueue<SocketAsyncEventArgs>();
+
+        private volatile int connectionCount;
+        private volatile int sendBytesCount;
+        private volatile int receiveBytesCount;
         private DateTime startTime;
         private DateTime stopTime;
 
         /// <summary>
-        /// 连接队列
+        /// 最大连接队列数量
         /// </summary>
         public int Backlog { get; private set; }
 
@@ -83,17 +89,17 @@ namespace IOCP.SocketCore.TcpSocketServer
         /// <summary>
         /// 客户端连接事件
         /// </summary>
-        public event EventHandler<TcpConnectionedArges> NewConnection;
+        public event EventHandler<SocketClient> NewConnection;
 
         /// <summary>
         /// 客户端断开事件
         /// </summary>
-        public event EventHandler<TcpConnectionedArges> Disconnected;
+        public event EventHandler<SocketClient> Disconnected;
 
         /// <summary>
         /// 收到数据
         /// </summary>
-        public event EventHandler<TcpReceiveDataArges> ReceiveData;
+        public event EventHandler<ReceiveDataArges> ReceiveData;
 
         /// <summary>
         /// 
@@ -110,7 +116,7 @@ namespace IOCP.SocketCore.TcpSocketServer
         /// </summary>
         /// <param name="port"></param>
         public void Start(int port = 0)
-        { 
+        {
             connectionCount = 0;
             sendBytesCount = 0;
             receiveBytesCount = 0;
@@ -133,7 +139,7 @@ namespace IOCP.SocketCore.TcpSocketServer
         /*开始接收套接字*/
         private void startAccept(SocketAsyncEventArgs socketAsync = null)
         {
-            if (!IsRun && listen != null)
+            if (!IsRun || listen == null)
                 return;
 
             if (socketAsync == null)
@@ -145,6 +151,7 @@ namespace IOCP.SocketCore.TcpSocketServer
             {
                 socketAsync.AcceptSocket = null;
             }
+
             if (!listen.AcceptAsync(socketAsync))
             {
                 OnAcceptNewConnection(listen, socketAsync);
@@ -154,26 +161,35 @@ namespace IOCP.SocketCore.TcpSocketServer
         /*接收新的连接*/
         private void OnAcceptNewConnection(object sender, SocketAsyncEventArgs e)
         {
-            TcpConnection connection = new TcpConnection(this) { Socket = e.AcceptSocket };
+            /*新连接的socket对象*/
+            var socket = e.AcceptSocket;
+
+            /*继续接收*/
             startAccept(e);
 
-            System.Threading.Interlocked.Increment(ref connectionCount);
-            NewConnection?.Invoke(this, new TcpConnectionedArges(connection));
+            /*连接数+1*/
+            Interlocked.Increment(ref connectionCount);
 
-            if (!queue.TryDequeue(out var socketReceiveAsync))
+
+            /*尝试取出一个异步完成套接字*/
+            if (!receiveAsyncEventQueue.TryDequeue(out var socketReceiveAsync))
             {
                 socketReceiveAsync = new SocketAsyncEventArgs();
                 socketReceiveAsync.Completed += SocketAsync_Receive_Completed;
                 socketReceiveAsync.SetBuffer(new byte[bufferLength], 0, bufferLength);
             }
 
-            //var socketReceiveAsync = new SocketAsyncEventArgs();
-            //socketReceiveAsync.Completed += SocketAsync_Receive_Completed;
-            //socketReceiveAsync.SetBuffer(new byte[bufferLength], 0, bufferLength);
-
-            connection.ReceiveSocketAsync = socketReceiveAsync;
+            /*创建一个客户端*/
+            var connection = new SocketClient
+            {
+                SocketAsyncEvent = socketReceiveAsync,
+                RemoteEndPoint = socket.RemoteEndPoint,
+                Socket = socket,
+            };
             socketReceiveAsync.UserToken = connection;
+            NewConnection?.Invoke(this, connection);
             StartReceive(connection);
+
         }
 
         /// <summary>
@@ -181,12 +197,13 @@ namespace IOCP.SocketCore.TcpSocketServer
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="bytes"></param>
-        public void SendAsync(TcpConnection connection, byte[] bytes)
+        public void SendAsync(SocketClient connection, byte[] bytes)
         {
-            if (!IsRun && listen != null && connection.Connectioned)
+            if (!IsRun || listen == null)
+            {
                 return;
-            SocketAsyncEventArgs socketSendAsync;
-            if (!queue.TryDequeue(out socketSendAsync))
+            }
+            if (!sendAsyncEventQueue.TryDequeue(out SocketAsyncEventArgs socketSendAsync))
             {
                 socketSendAsync = new SocketAsyncEventArgs();
                 socketSendAsync.Completed += SocketSendAsync_Send_Completed;
@@ -204,7 +221,7 @@ namespace IOCP.SocketCore.TcpSocketServer
             {
                 OnConnectionClose(connection);
                 if (socketSendAsync != null)
-                    queue.Enqueue(socketSendAsync);
+                    sendAsyncEventQueue.Enqueue(socketSendAsync);
             }
         }
 
@@ -212,20 +229,21 @@ namespace IOCP.SocketCore.TcpSocketServer
         private void SocketSendAsync_Send_Completed(object sender, SocketAsyncEventArgs e)
         {
             e.UserToken = null;
-            queue.Enqueue(e);
+            e.AcceptSocket = null;
+            sendAsyncEventQueue.Enqueue(e);
             Interlocked.Add(ref sendBytesCount, e.Buffer.Length);
         }
 
         /*开始接收数据*/
-        private void StartReceive(TcpConnection connection)
+        private void StartReceive(SocketClient connection)
         {
-            if (!IsRun && listen != null && connection.Connectioned)
-                return;
-
-            if (!connection.Socket.ReceiveAsync(connection.ReceiveSocketAsync))
+            if (!IsRun || listen == null)
             {
-                SocketAsync_Receive_Completed(listen, connection.ReceiveSocketAsync);
+                return;
             }
+
+            if (!connection.Socket.ReceiveAsync(connection.SocketAsyncEvent))
+                SocketAsync_Receive_Completed(listen, connection.SocketAsyncEvent);
         }
 
         /*接收到新的数据*/
@@ -235,38 +253,41 @@ namespace IOCP.SocketCore.TcpSocketServer
             {
                 if (e.LastOperation == SocketAsyncOperation.Receive)
                 {
-                    var connection = (TcpConnection)e.UserToken;
+                    var connection = (SocketClient)e.UserToken;
                     var bytes = new byte[e.BytesTransferred];
                     Interlocked.Add(ref receiveBytesCount, bytes.Length);
                     Buffer.BlockCopy(e.Buffer, e.Offset, bytes, 0, bytes.Length);
+
+                    ReceiveData?.Invoke(this, new ReceiveDataArges(connection, bytes));
                     StartReceive(connection);
-                    ReceiveData?.Invoke(this, new TcpReceiveDataArges(connection, bytes));
                 }
             }
             else
             {
-                OnConnectionClose((TcpConnection)e.UserToken); 
-                e.AcceptSocket = null;
-                e.UserToken = null;
-                queue.Enqueue(e);
+                OnConnectionClose((SocketClient)e.UserToken);
             }
         }
 
         /*连接已关闭*/
-        private void OnConnectionClose(TcpConnection connection)
+        private void OnConnectionClose(SocketClient connection)
         {
-            Interlocked.Decrement(ref connectionCount);
+            var e = connection.SocketAsyncEvent;
+            e.AcceptSocket = null;
+            e.UserToken = null;
+            receiveAsyncEventQueue.Enqueue(e);
 
             try
             {
                 connection.Socket.Shutdown(SocketShutdown.Both);
                 connection.Socket.Close();
             }
-            catch (Exception)
-            {
-            } 
+            catch (Exception) { }
 
-            Disconnected?.Invoke(this, new TcpConnectionedArges(connection));
+            Interlocked.Decrement(ref connectionCount);
+            connection.SocketAsyncEvent = null;
+            connection.Socket = null;
+
+            Disconnected?.Invoke(this, connection);
         }
 
         /// <summary>
@@ -282,13 +303,18 @@ namespace IOCP.SocketCore.TcpSocketServer
                 listen?.Shutdown(SocketShutdown.Both);
             }
             catch (Exception)
-            { 
+            {
             }
-            
+
             listen = null;
 
             stopTime = DateTime.Now;
             ServerStopRun?.Invoke(this, new EventArgs());
+        }
+
+        public void Close(SocketClient socketClient)
+        {
+            OnConnectionClose(socketClient);
         }
     }
 }

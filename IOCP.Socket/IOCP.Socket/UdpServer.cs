@@ -5,9 +5,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace IOCP.SocketCore.UdpSocketServer
-{ 
-    public class UdpServer : IUdpServer
+namespace IOCP.SocketCore
+{
+    public class UdpServer
     {
         private Socket listen;
         private bool isRun;
@@ -20,7 +20,7 @@ namespace IOCP.SocketCore.UdpSocketServer
 
         public int SendBytesCount => sendBytesCount;
 
-        public int ReceiveBytesCount => receiveBytesCount; 
+        public int ReceiveBytesCount => receiveBytesCount;
 
         public TimeSpan RunTime
         {
@@ -42,7 +42,7 @@ namespace IOCP.SocketCore.UdpSocketServer
         public UdpServer(int bufferLength) => this.bufferLength = bufferLength;
 
 
-        public event EventHandler<ReceiveDataEventArgs> ReceiveData;
+        public event EventHandler<ReceiveDataArges> ReceiveData;
         public event EventHandler ServerStartRun;
         public event EventHandler ServerStopRun;
 
@@ -86,22 +86,15 @@ namespace IOCP.SocketCore.UdpSocketServer
         {
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-             
                 if (e.LastOperation == SocketAsyncOperation.ReceiveFrom)
                 {
-
                     var buffer = new byte[e.BytesTransferred];
                     System.Threading.Interlocked.Add(ref receiveBytesCount, buffer.Length);
                     Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, buffer.Length);
-                    StartReceive(e);
-                    var receiveEventHandler = new ReceiveDataEventArgs()
+                    ReceiveData.Invoke(this, new ReceiveDataArges(new SocketClient()
                     {
-                        Data = buffer,
-                        EndPoint = e.RemoteEndPoint,
-                    };
-                    ReceiveData.Invoke(this, receiveEventHandler);
-                    // SendAsync(e.RemoteEndPoint, buffer);
-                    return;
+                        RemoteEndPoint=e.RemoteEndPoint,                        
+                    }, buffer));
                 }
             }
             StartReceive(e);

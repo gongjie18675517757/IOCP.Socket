@@ -2,6 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>gongjie@qq.com</Authors>
+    <Company>none</Company>
+    <Product>IOCP.SocketCore</Product>
+    <Description>ICOP实现的tcp/udp server
+可以轻松扩展实现自己的socket服务</Description>
+    <Copyright>无</Copyright>
+    <PackageProjectUrl>https://github.com/gongjie18675517757/IOCP.Socket</PackageProjectUrl>
+    <NeutralLanguage></NeutralLanguage>
   </PropertyGroup>
 
 </Project>

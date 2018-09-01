@@ -1,4 +1,4 @@
-﻿using IOCP.SocketCore.UdpSocketServer;
+﻿using IOCP.SocketCore;
 using System;
 
 namespace IOCP.SocketCore.UDPServerTest
@@ -32,10 +32,10 @@ namespace IOCP.SocketCore.UDPServerTest
             Console.WriteLine($"{udpServer.LocalEndPoint}\tstart..");
         }
 
-        private static void UdpServer_OnReceiveData(object sender, ReceiveDataEventArgs e)
+        private static void UdpServer_OnReceiveData(object sender, ReceiveDataArges e)
         {
             UdpServer udpServer = (UdpServer)sender;
-            udpServer.SendAsync(e.EndPoint, e.Data);
+            udpServer.SendAsync(e.Client.RemoteEndPoint, e.Data);
         }
     }
 }
