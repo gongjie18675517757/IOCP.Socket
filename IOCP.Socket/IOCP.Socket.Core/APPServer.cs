@@ -1,19 +1,129 @@
-﻿using System;
+﻿using IOCP.Socket.Core.RequestInfo;
+using Microsoft.Extensions.Options;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-namespace IOCP.SocketCore
+namespace IOCP.Socket.Core
 {
     /// <summary>
-    /// TCP服务
+    /// 监听模式
     /// </summary>
-    public class TcpServer
+    public enum ListenMode
     {
-        private Socket listen;
+        Tcp,
+        Udp
+    }
+
+    /// <summary>
+    /// 监听信息
+    /// </summary>
+    public class Listener
+    {
+        /// <summary>
+        /// IP
+        /// </summary>
+        public IPAddress Ip { get; set; } = IPAddress.Any;
+
+        /// <summary>
+        /// 端口
+        /// </summary>
+        public int Post { get; set; } = 0;
+    }
+
+    /// <summary>
+    /// 服务配置
+    /// </summary>
+    public class ServerConfig
+    {
+        /// <summary>
+        /// 监听模式
+        /// </summary>
+        public ListenMode Mode { get; set; } = ListenMode.Tcp;
+
+        /// <summary>
+        /// 监听信息
+        /// </summary>
+        public IEnumerable<Listener> Listeners { get; set; } = new Listener[] { new Listener() };
+
+        /// <summary>
+        ///  监听队列的大小
+        /// </summary>
+        public int ListenBacklog { get; set; } = 5;
+
+        /// <summary>
+        /// 发送超时
+        /// </summary>
+        public int SendTimeOut { get; internal set; } = 10;
+
+        /// <summary>
+        /// 可允许连接的最大连接数
+        /// </summary>
+        public int MaxConnectionNumber { get; set; } = 100;
+
+        /// <summary>
+        /// 接收缓冲区大小
+        /// </summary>
+        public int ReceiveBufferSize { get; set; } = 1024;
+
+        /// <summary>
+        /// 发送缓冲区大小
+        /// </summary>
+        public int SendBufferSize { get; set; } = 1024;
+
+        /// <summary>
+        /// 是否记录命令执行的记录
+        /// </summary>
+        public bool LogCommand { get; set; } = true;
+
+        /// <summary>
+        /// 是否记录session的基本活动，如连接和断开
+        /// </summary>
+        public bool LogBasicSessionActivity { get; set; } = true;
+
+        /// <summary>
+        /// 是否记录所有Socket异常和错误
+        /// </summary>
+        public bool LogAllSocketException { get; set; } = true;
+
+        /// <summary>
+        /// 是否定时清空空闲会话，默认值是 false
+        /// </summary>
+        public bool ClearIdleSession { get; set; } = false;
+
+        /// <summary>
+        /// 清空空闲会话的时间间隔, 默认值是120, 单位为秒
+        /// </summary>
+        public int ClearIdleSessionInterval { get; set; } = 120;
+
+        /// <summary>
+        /// 会话空闲超时时间; 当此会话空闲时间超过此值，同时clearIdleSession被配置成true时，此会话将会被关闭; 默认值为300，单位为秒
+        /// </summary>
+        public int IdleSessionTimeOut { get; set; }
+
+        /// <summary>
+        /// 最大允许的请求长度，默认值为1024
+        /// </summary>
+        public int MaxRequestLength { get; set; }
+
+        /// <summary>
+        /// 文本的默认编码，默认值是 ASCII
+        /// </summary>
+        public string TextEncoding { get; set; }
+    }
+
+
+    public abstract class APPServer<TSession, TRequest>
+        where TRequest : IRequestInfo
+        where TSession : AppSession<TRequest>, new()
+    {
+        private System.Net.Sockets.Socket listen;
         private volatile int isRun;
         private readonly int bufferLength;
+        private readonly IOptions<ServerConfig> options;
 
         /// <summary>
         /// 缓存异步套接字字段[接收]
@@ -33,7 +143,7 @@ namespace IOCP.SocketCore
         /// <summary>
         /// 最大连接队列数量
         /// </summary>
-        public int Backlog { get; private set; }
+        public int Backlog => options.Value.ListenBacklog;
 
         /// <summary>
         /// 已连接的数量
@@ -89,26 +199,22 @@ namespace IOCP.SocketCore
         /// <summary>
         /// 客户端连接事件
         /// </summary>
-        public event EventHandler<SocketClient> NewConnection;
+        public event EventHandler<TSession> NewConnection;
 
         /// <summary>
         /// 客户端断开事件
         /// </summary>
-        public event EventHandler<SocketClient> Disconnected;
+        public event EventHandler<TSession> Disconnected;
 
         /// <summary>
         /// 收到数据
         /// </summary>
-        public event EventHandler<ReceiveDataArges> ReceiveData;
+        public event EventHandler<TSession> ReceiveData;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="bufferLength">每个Receive的SocketAsyncEventArgs缓冲区大小</param>
-        public TcpServer(int bufferLength = 1024, int backlog = 100)
+
+        public APPServer(IOptions<ServerConfig> options)
         {
-            this.bufferLength = bufferLength;
-            Backlog = backlog;
+            this.options = options;
         }
 
         /// <summary>
@@ -120,16 +226,26 @@ namespace IOCP.SocketCore
             connectionCount = 0;
             sendBytesCount = 0;
             receiveBytesCount = 0;
+
             startTime = DateTime.Now;
             stopTime = default(DateTime);
 
-            var local = new IPEndPoint(IPAddress.Any, port);
-            listen = new Socket(local.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+            listen = new System.Net.Sockets.Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
             {
-                NoDelay = true
+                NoDelay = true,
+                ReceiveBufferSize = options.Value.ReceiveBufferSize,
+                SendBufferSize = options.Value.SendBufferSize,
+                SendTimeout = options.Value.SendTimeOut * 1000,               
             };
-            listen.Bind(local);
+
+            foreach (var item in options.Value.Listeners)
+            {
+                var local = new IPEndPoint(item.Ip, item.Post);
+                listen.Bind(local);
+            }
+
             listen.Listen(Backlog);
+
 
             isRun = 1;
             ServerStartRun?.Invoke(this, new EventArgs());
@@ -180,22 +296,22 @@ namespace IOCP.SocketCore
             }
 
             /*创建一个客户端*/
-            var connection = new SocketClient
+            var connection = new TSession
             {
-                SocketAsyncEvent = socketReceiveAsync,
-                RemoteEndPoint = socket.RemoteEndPoint,
                 Socket = socket,
+                SocketAsyncEvent = socketReceiveAsync,
             };
+            connection.SendAction = bytes => SendAsync(connection, bytes);
+
             socketReceiveAsync.UserToken = connection;
             NewConnection?.Invoke(this, connection);
             StartReceive(connection);
-
         }
 
         /// <summary>
         /// 异步发送
         /// </summary> 
-        public void SendAsync(SocketClient connection, byte[] bytes)
+        public void SendAsync(TSession connection, byte[] bytes)
         {
             if (!IsRun || listen == null)
             {
@@ -233,7 +349,7 @@ namespace IOCP.SocketCore
         }
 
         /*开始接收数据*/
-        private void StartReceive(SocketClient connection)
+        private void StartReceive(TSession connection)
         {
             if (!IsRun || listen == null)
             {
@@ -251,25 +367,24 @@ namespace IOCP.SocketCore
             {
                 if (e.LastOperation == SocketAsyncOperation.Receive)
                 {
-                    var connection = (SocketClient)e.UserToken;
-                    var bytes = new byte[e.BytesTransferred];
-                    Interlocked.Add(ref receiveBytesCount, bytes.Length);
-                    Buffer.BlockCopy(e.Buffer, e.Offset, bytes, 0, bytes.Length);
-
-                    ReceiveData?.Invoke(this, new ReceiveDataArges(connection, bytes));
+                    var connection = (TSession)e.UserToken;
+                    connection.SetReceiveData(e.Buffer, e.Offset, e.BytesTransferred);
                     StartReceive(connection);
+                    ReceiveData?.Invoke(this, connection);
                 }
             }
             else
             {
-                OnConnectionClose((SocketClient)e.UserToken);
+                OnConnectionClose((TSession)e.UserToken);
             }
         }
 
         /*连接已关闭*/
-        private void OnConnectionClose(SocketClient connection)
+        private void OnConnectionClose(TSession connection)
         {
             var e = connection.SocketAsyncEvent;
+            if (e == null)
+                return;
             e.AcceptSocket = null;
             e.UserToken = null;
             receiveAsyncEventQueue.Enqueue(e);
@@ -282,9 +397,7 @@ namespace IOCP.SocketCore
             catch (Exception) { }
 
             Interlocked.Decrement(ref connectionCount);
-            connection.SocketAsyncEvent = null;
-            connection.Socket = null;
-
+            connection.SetClose();
             Disconnected?.Invoke(this, connection);
         }
 
@@ -310,7 +423,7 @@ namespace IOCP.SocketCore
             ServerStopRun?.Invoke(this, new EventArgs());
         }
 
-        public void Close(SocketClient socketClient)
+        public void Close(TSession socketClient)
         {
             OnConnectionClose(socketClient);
         }
