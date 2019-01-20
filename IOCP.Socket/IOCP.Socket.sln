@@ -9,9 +9,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.SocketCore.TCPServerTe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.SocketCore.UDPServerTest", "IOCP.SocketCore.UDPServerTest\IOCP.SocketCore.UDPServerTest.csproj", "{80E5EA10-2DCA-4C58-9644-E250DE57DFDE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.Socket.Core", "IOCP.Socket.Core\IOCP.Socket.Core.csproj", "{7CD91223-23EA-4F61-ABA7-4CE1CCF756A9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.Socket.Core", "IOCP.Socket.Core\IOCP.Socket.Core.csproj", "{7CD91223-23EA-4F61-ABA7-4CE1CCF756A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IOCP.Socket.TcpTest", "IOCP.Socket.TcpTest\IOCP.Socket.TcpTest.csproj", "{39595D59-6514-4DE6-955E-93D8FB7F8AB3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOCP.Socket.TcpTest", "IOCP.Socket.TcpTest\IOCP.Socket.TcpTest.csproj", "{39595D59-6514-4DE6-955E-93D8FB7F8AB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netty.Demo", "Netty.Demo\Netty.Demo.csproj", "{0933EF6B-026C-4951-A893-25B386B4CE16}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netty.SuperSocket", "Netty.SuperSocket\Netty.SuperSocket.csproj", "{C66794C9-A5D3-4F4F-B24D-7DB74634E4B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netty.SuperSocket.Example", "Netty.SuperSocket.Example\Netty.SuperSocket.Example.csproj", "{C3DBD714-EB91-4254-828C-CAA0829DC24E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +45,18 @@ Global
 		{39595D59-6514-4DE6-955E-93D8FB7F8AB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{39595D59-6514-4DE6-955E-93D8FB7F8AB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{39595D59-6514-4DE6-955E-93D8FB7F8AB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0933EF6B-026C-4951-A893-25B386B4CE16}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0933EF6B-026C-4951-A893-25B386B4CE16}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0933EF6B-026C-4951-A893-25B386B4CE16}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0933EF6B-026C-4951-A893-25B386B4CE16}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C66794C9-A5D3-4F4F-B24D-7DB74634E4B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C66794C9-A5D3-4F4F-B24D-7DB74634E4B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C66794C9-A5D3-4F4F-B24D-7DB74634E4B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C66794C9-A5D3-4F4F-B24D-7DB74634E4B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3DBD714-EB91-4254-828C-CAA0829DC24E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3DBD714-EB91-4254-828C-CAA0829DC24E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3DBD714-EB91-4254-828C-CAA0829DC24E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3DBD714-EB91-4254-828C-CAA0829DC24E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

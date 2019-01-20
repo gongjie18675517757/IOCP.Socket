@@ -1,7 +1,7 @@
-﻿using IOCP.Socket.Core.RequestInfo;
+﻿using Netty.SuperSocket.RequestInfo;
 using System.Threading.Tasks;
 
-namespace IOCP.Socket.Core.Command
+namespace Netty.SuperSocket.Command
 {
     /// <summary>
     /// 命令接口

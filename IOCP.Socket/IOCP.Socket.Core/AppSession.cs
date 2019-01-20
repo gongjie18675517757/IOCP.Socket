@@ -1,18 +1,18 @@
 ﻿using IOCP.Socket.Core.RequestInfo;
 using System;
-using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 
 namespace IOCP.Socket.Core
-{
+{ 
     /// <summary>
     /// 客户端连接
     /// </summary>
     /// <typeparam name="TRequest">请求类型</typeparam>
-    public class AppSession<TRequest> where TRequest : IRequestInfo
-    {
-        private readonly Pipe receivePipe;
+    public abstract class AppSession<TSession, TRequest>
+        where TRequest : IRequestInfo
+        where TSession : AppSession<TSession, TRequest>, new()
+    {        
         private System.Net.Sockets.Socket _socket;
 
         /// <summary>
@@ -23,17 +23,7 @@ namespace IOCP.Socket.Core
         /// <summary>
         /// 收到数据
         /// </summary>
-        public event EventHandler Received;
-
-        /// <summary>
-        /// 读取管道
-        /// </summary>
-        public PipeReader PipeReader { get; }
-
-        /// <summary>
-        /// 写数据管道
-        /// </summary>
-        internal PipeWriter PipeWriter { get; }
+        public event EventHandler<DataEventArgs> Received;
 
         /// <summary>
         /// 客户端套接字
@@ -43,7 +33,8 @@ namespace IOCP.Socket.Core
             get => _socket; set
             {
                 _socket = value;
-                RemoteEndPoint = value.RemoteEndPoint;
+                if (value != null)
+                    RemoteEndPoint = value.RemoteEndPoint;
             }
         }
 
@@ -53,36 +44,25 @@ namespace IOCP.Socket.Core
         public EndPoint RemoteEndPoint { get; private set; }
 
         /// <summary>
-        /// 异步套接字
+        /// 接收套接字
         /// </summary>
-        internal SocketAsyncEventArgs SocketAsyncEvent { get; set; }
+        internal SocketAsyncEventArgs ReceiveSAE { get; set; }
 
         /// <summary>
-        /// 发送数据的方法
+        /// 服务
         /// </summary>
-        internal Action<byte[]> SendAction { get; set; }
-
-        public AppSession()
-        {
-            receivePipe = new Pipe();
-            this.PipeReader = receivePipe.Reader;
-            this.PipeWriter = receivePipe.Writer;
-        }
+        public virtual APPServer<TSession, TRequest> APPServer { get; internal set; }
 
         internal void SetClose()
         {
-            SocketAsyncEvent = null;
+            ReceiveSAE = null;
             Socket = null;
-            SendAction = null;
             Closed?.Invoke(this, new EventArgs());
         }
 
         internal void SetReceiveData(byte[] bytes, int start, int length)
         {
-            PipeWriter.WriteAsync(new ReadOnlyMemory<byte>(bytes, start, length)).AsTask().ContinueWith(t =>
-            {
-                Received?.Invoke(this, new EventArgs());
-            });
+            Received?.Invoke(this, new DataEventArgs() { Buffer = bytes, Length = length, Index = start });
         }
 
         /// <summary>
@@ -100,9 +80,9 @@ namespace IOCP.Socket.Core
         /// </summary>
         protected virtual void OnClosed() { }
 
-        public virtual void SendAsync(byte[] bytes)
+        public virtual void SendAsync(byte[] bytes, int index, int length)
         {
-            SendAction?.Invoke(bytes);
+            APPServer.SendAsync((TSession)(this), bytes, index, length); 
         }
     }
 }

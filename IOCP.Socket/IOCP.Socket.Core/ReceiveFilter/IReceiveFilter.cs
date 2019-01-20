@@ -1,5 +1,4 @@
 ﻿using IOCP.Socket.Core.RequestInfo;
-using System.IO.Pipelines;
 using System.Threading.Tasks;
 
 namespace IOCP.Socket.Core.ReceiveFilter

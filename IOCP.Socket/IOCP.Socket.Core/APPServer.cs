@@ -1,128 +1,22 @@
-﻿using IOCP.Socket.Core.RequestInfo;
+﻿using IOCP.Socket.Core.Config;
+using IOCP.Socket.Core.RequestInfo;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace IOCP.Socket.Core
 {
-    /// <summary>
-    /// 监听模式
-    /// </summary>
-    public enum ListenMode
-    {
-        Tcp,
-        Udp
-    }
-
-    /// <summary>
-    /// 监听信息
-    /// </summary>
-    public class Listener
-    {
-        /// <summary>
-        /// IP
-        /// </summary>
-        public IPAddress Ip { get; set; } = IPAddress.Any;
-
-        /// <summary>
-        /// 端口
-        /// </summary>
-        public int Post { get; set; } = 0;
-    }
-
-    /// <summary>
-    /// 服务配置
-    /// </summary>
-    public class ServerConfig
-    {
-        /// <summary>
-        /// 监听模式
-        /// </summary>
-        public ListenMode Mode { get; set; } = ListenMode.Tcp;
-
-        /// <summary>
-        /// 监听信息
-        /// </summary>
-        public IEnumerable<Listener> Listeners { get; set; } = new Listener[] { new Listener() };
-
-        /// <summary>
-        ///  监听队列的大小
-        /// </summary>
-        public int ListenBacklog { get; set; } = 5;
-
-        /// <summary>
-        /// 发送超时
-        /// </summary>
-        public int SendTimeOut { get; internal set; } = 10;
-
-        /// <summary>
-        /// 可允许连接的最大连接数
-        /// </summary>
-        public int MaxConnectionNumber { get; set; } = 100;
-
-        /// <summary>
-        /// 接收缓冲区大小
-        /// </summary>
-        public int ReceiveBufferSize { get; set; } = 1024;
-
-        /// <summary>
-        /// 发送缓冲区大小
-        /// </summary>
-        public int SendBufferSize { get; set; } = 1024;
-
-        /// <summary>
-        /// 是否记录命令执行的记录
-        /// </summary>
-        public bool LogCommand { get; set; } = true;
-
-        /// <summary>
-        /// 是否记录session的基本活动，如连接和断开
-        /// </summary>
-        public bool LogBasicSessionActivity { get; set; } = true;
-
-        /// <summary>
-        /// 是否记录所有Socket异常和错误
-        /// </summary>
-        public bool LogAllSocketException { get; set; } = true;
-
-        /// <summary>
-        /// 是否定时清空空闲会话，默认值是 false
-        /// </summary>
-        public bool ClearIdleSession { get; set; } = false;
-
-        /// <summary>
-        /// 清空空闲会话的时间间隔, 默认值是120, 单位为秒
-        /// </summary>
-        public int ClearIdleSessionInterval { get; set; } = 120;
-
-        /// <summary>
-        /// 会话空闲超时时间; 当此会话空闲时间超过此值，同时clearIdleSession被配置成true时，此会话将会被关闭; 默认值为300，单位为秒
-        /// </summary>
-        public int IdleSessionTimeOut { get; set; }
-
-        /// <summary>
-        /// 最大允许的请求长度，默认值为1024
-        /// </summary>
-        public int MaxRequestLength { get; set; }
-
-        /// <summary>
-        /// 文本的默认编码，默认值是 ASCII
-        /// </summary>
-        public string TextEncoding { get; set; }
-    }
-
-
     public abstract class APPServer<TSession, TRequest>
         where TRequest : IRequestInfo
-        where TSession : AppSession<TRequest>, new()
+        where TSession : AppSession<TSession, TRequest>, new()
     {
         private System.Net.Sockets.Socket listen;
         private volatile int isRun;
-        private readonly int bufferLength;
         private readonly IOptions<ServerConfig> options;
 
         /// <summary>
@@ -139,11 +33,6 @@ namespace IOCP.Socket.Core
         private volatile int receiveBytesCount;
         private DateTime startTime;
         private DateTime stopTime;
-
-        /// <summary>
-        /// 最大连接队列数量
-        /// </summary>
-        public int Backlog => options.Value.ListenBacklog;
 
         /// <summary>
         /// 已连接的数量
@@ -189,22 +78,22 @@ namespace IOCP.Socket.Core
         /// <summary>
         /// 服务开始运行
         /// </summary>
-        public event EventHandler ServerStartRun;
+        public event EventHandler ServerStarted;
 
         /// <summary>
         /// 服务停止运行
         /// </summary>
-        public event EventHandler ServerStopRun;
+        public event EventHandler ServerStopped;
 
         /// <summary>
         /// 客户端连接事件
         /// </summary>
-        public event EventHandler<TSession> NewConnection;
+        public event EventHandler<TSession> NewSession;
 
         /// <summary>
         /// 客户端断开事件
         /// </summary>
-        public event EventHandler<TSession> Disconnected;
+        public event EventHandler<TSession> SessionClosed;
 
         /// <summary>
         /// 收到数据
@@ -219,9 +108,8 @@ namespace IOCP.Socket.Core
 
         /// <summary>
         /// 开始监听
-        /// </summary>
-        /// <param name="port"></param>
-        public void Start(int port = 0)
+        /// </summary> 
+        public Task RunAsync(CancellationToken cancellationToken)
         {
             connectionCount = 0;
             sendBytesCount = 0;
@@ -235,22 +123,36 @@ namespace IOCP.Socket.Core
                 NoDelay = true,
                 ReceiveBufferSize = options.Value.ReceiveBufferSize,
                 SendBufferSize = options.Value.SendBufferSize,
-                SendTimeout = options.Value.SendTimeOut * 1000,               
+                SendTimeout = options.Value.SendTimeOut * 1000,
             };
 
             foreach (var item in options.Value.Listeners)
             {
-                var local = new IPEndPoint(item.Ip, item.Post);
+                var local = new IPEndPoint(IPAddress.Parse(item.Ip), item.Post);
                 listen.Bind(local);
             }
 
-            listen.Listen(Backlog);
-
+            listen.Listen(options.Value.ListenBacklog);
 
             isRun = 1;
-            ServerStartRun?.Invoke(this, new EventArgs());
+            ServerStarted?.Invoke(this, new EventArgs());
+            OnServerStarted();
             startAccept();
+
+            var asyncTaskMethodBuilder = AsyncTaskMethodBuilder.Create();
+
+            cancellationToken.Register(new Action(() =>
+            {
+                this.Stop();
+                asyncTaskMethodBuilder.SetResult();
+            }));
+            return asyncTaskMethodBuilder.Task;
         }
+
+        /// <summary>
+        /// 服务启动
+        /// </summary>
+        protected void OnServerStarted() { }
 
         /*开始接收套接字*/
         private void startAccept(SocketAsyncEventArgs socketAsync = null)
@@ -292,26 +194,34 @@ namespace IOCP.Socket.Core
             {
                 socketReceiveAsync = new SocketAsyncEventArgs();
                 socketReceiveAsync.Completed += SocketAsync_Receive_Completed;
-                socketReceiveAsync.SetBuffer(new byte[bufferLength], 0, bufferLength);
+                socketReceiveAsync.SetBuffer(new byte[1024], 0, 1024);
             }
 
             /*创建一个客户端*/
-            var connection = new TSession
+            var session = new TSession
             {
                 Socket = socket,
-                SocketAsyncEvent = socketReceiveAsync,
+                ReceiveSAE = socketReceiveAsync,
+                APPServer = this,
             };
-            connection.SendAction = bytes => SendAsync(connection, bytes);
 
-            socketReceiveAsync.UserToken = connection;
-            NewConnection?.Invoke(this, connection);
-            StartReceive(connection);
+            socketReceiveAsync.UserToken = session;
+            NewSession?.Invoke(this, session);
+            OnNewSession(session);
+
+            StartReceive(session);
         }
+
+        /// <summary>
+        /// 收到新的连接
+        /// </summary>
+        /// <param name="session"></param>
+        protected virtual void OnNewSession(TSession session) { }
 
         /// <summary>
         /// 异步发送
         /// </summary> 
-        public void SendAsync(TSession connection, byte[] bytes)
+        public void SendAsync(TSession connection, byte[] bytes, int index, int length)
         {
             if (!IsRun || listen == null)
             {
@@ -325,7 +235,7 @@ namespace IOCP.Socket.Core
             try
             {
                 socketSendAsync.UserToken = connection;
-                socketSendAsync.SetBuffer(bytes, 0, bytes.Length);
+                socketSendAsync.SetBuffer(bytes, index, length);
                 if (!connection.Socket.SendAsync(socketSendAsync))
                 {
                     SocketSendAsync_Send_Completed(listen, socketSendAsync);
@@ -356,8 +266,8 @@ namespace IOCP.Socket.Core
                 return;
             }
 
-            if (!connection.Socket.ReceiveAsync(connection.SocketAsyncEvent))
-                SocketAsync_Receive_Completed(listen, connection.SocketAsyncEvent);
+            if (!connection.Socket.ReceiveAsync(connection.ReceiveSAE))
+                SocketAsync_Receive_Completed(listen, connection.ReceiveSAE);
         }
 
         /*接收到新的数据*/
@@ -367,10 +277,10 @@ namespace IOCP.Socket.Core
             {
                 if (e.LastOperation == SocketAsyncOperation.Receive)
                 {
-                    var connection = (TSession)e.UserToken;
-                    connection.SetReceiveData(e.Buffer, e.Offset, e.BytesTransferred);
-                    StartReceive(connection);
-                    ReceiveData?.Invoke(this, connection);
+                    var session = (TSession)e.UserToken;
+                    session.SetReceiveData(e.Buffer, e.Offset, e.BytesTransferred);                  
+                    ReceiveData?.Invoke(this, session);
+                    StartReceive(session);
                 }
             }
             else
@@ -382,7 +292,7 @@ namespace IOCP.Socket.Core
         /*连接已关闭*/
         private void OnConnectionClose(TSession connection)
         {
-            var e = connection.SocketAsyncEvent;
+            var e = connection.ReceiveSAE;
             if (e == null)
                 return;
             e.AcceptSocket = null;
@@ -398,8 +308,15 @@ namespace IOCP.Socket.Core
 
             Interlocked.Decrement(ref connectionCount);
             connection.SetClose();
-            Disconnected?.Invoke(this, connection);
+            SessionClosed?.Invoke(this, connection);
+            OnSessionClosed(connection);
         }
+
+        /// <summary>
+        /// 连接关闭
+        /// </summary>
+        /// <param name="session">会话</param>
+        protected virtual void OnSessionClosed(TSession session) { }
 
         /// <summary>
         /// 停止运行
@@ -420,8 +337,14 @@ namespace IOCP.Socket.Core
             listen = null;
 
             stopTime = DateTime.Now;
-            ServerStopRun?.Invoke(this, new EventArgs());
+            ServerStopped?.Invoke(this, new EventArgs());
+            OnServerStopped();
         }
+
+        /// <summary>
+        /// 服务已停止
+        /// </summary>
+        protected void OnServerStopped() { }
 
         public void Close(TSession socketClient)
         {
