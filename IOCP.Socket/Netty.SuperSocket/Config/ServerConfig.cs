@@ -20,7 +20,7 @@ namespace Netty.SuperSocket.Config
         /// <summary>
         /// 工作线程数量
         /// </summary>
-        public int ChildGroupCount { get; set; } = 5;
+        public int ChildGroupCount { get; set; } = 4;
 
         /// <summary>
         /// 监听信息

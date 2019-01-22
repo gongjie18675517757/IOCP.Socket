@@ -309,7 +309,7 @@ namespace Netty.SuperSocket
 
             public override void ChannelRead(IChannelHandlerContext context, object message)
             {
-                base.ChannelRead(context, message);
+                //base.ChannelRead(context, message);
                 channelInaChannelReadctive(context, message);
             }
         }

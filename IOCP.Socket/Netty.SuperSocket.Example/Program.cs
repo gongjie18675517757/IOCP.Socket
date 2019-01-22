@@ -61,18 +61,10 @@ namespace Netty.SuperSocket.Example
     {
         public override async Task OnReceiveDataAsync(IByteBuffer buffer)
         {
-            try
-            {
-                var bytes = new byte[buffer.ReadableBytes];
-                var buffer2 = buffer.ReadBytes(bytes);
-                await Send(bytes, 0, bytes.Length);
-                await base.OnReceiveDataAsync(buffer);
-            }
-            catch (Exception ex)
-            {
-
-                throw ex;
-            }
+            //var bytes = new byte[] { 0x01, 0x02 };
+            //var buffer = e.ReadBytes(e.ReadableBytes);
+             await Send(buffer); 
+            await base.OnReceiveDataAsync(buffer);
         }
     }
 
