@@ -25,7 +25,7 @@ namespace Netty.SuperSocket.Config
         /// <summary>
         /// 监听信息
         /// </summary>
-        public IEnumerable<ListenerConfig> Listeners { get; set; } = new ListenerConfig[] { new ListenerConfig() };
+        public string Listeners { get; set; } = "0.0.0.0:2012";
 
         /// <summary>
         ///  监听队列的大小

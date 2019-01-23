@@ -1,5 +1,6 @@
 ﻿using DotNetty.Buffers;
 using DotNetty.Codecs;
+using DotNetty.Common.Utilities;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
@@ -136,9 +137,10 @@ namespace Netty.SuperSocket
                     pipeline.AddLast(new SessionHandler(ChannelActive, ChannelInactive, ChannelRead));
                 }));
 
-            foreach (var item in option.Listeners)
+            foreach (var item in option.Listeners.Split(new char[] { ';' }))
             {
-                var bootstrapChannel = await bootstrap.BindAsync(/*item.Ip, */item.Post);
+                var arr = item.Split(new char[] { ':' });
+                var bootstrapChannel = await bootstrap.BindAsync(IPAddress.Parse(arr[0]), int.Parse(arr[1]));
                 this.channels.Add(bootstrapChannel);
             }
 
