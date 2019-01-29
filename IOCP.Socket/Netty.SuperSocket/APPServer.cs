@@ -134,7 +134,7 @@ namespace Netty.SuperSocket
                 .ChildHandler(new ActionChannelInitializer<ISocketChannel>(channel =>
                 {
                     IChannelPipeline pipeline = channel.Pipeline;
-                    pipeline.AddLast(new ArrayToByteEncoder(), new ArraySegmentToByteEnCoder());
+                    pipeline.AddLast(new ArrayToByteEncoder(), new ArraySegmentToByteEnCoder(), new EnCoder(EnCodeRequestInfo));
                     pipeline.AddLast(new DeCoder(DeCodeRequestInfo), new SessionHandler(ChannelActive, ChannelInactive, ChannelRead));
                 }));
 
@@ -199,6 +199,14 @@ namespace Netty.SuperSocket
             return new CommandLineReceiveFilter().Decode(buffer);
         }
 
+        private void EnCodeRequestInfo(IChannelHandlerContext context, object obj, IByteBuffer buffer)
+        {
+            if (obj is StringRequestInfo request)
+            {
+                new CommandLineReceiveFilter().Encode(buffer, request);
+            }
+        }
+
         /// <summary>
         /// 收到数据
         /// </summary>
@@ -225,9 +233,9 @@ namespace Netty.SuperSocket
             /*解析成请求*/
             if (message is TRequest request)
             {
-                session.OnReceiveRequest(request);
+                session.OnReceiveRequestAsync(request);
             }
-        } 
+        }
 
         /// <summary>
         /// 收到新的连接
@@ -299,6 +307,20 @@ namespace Netty.SuperSocket
                 var obj = func(context, input);
                 if (obj != null)
                     output.Add(obj);
+            }
+        }
+
+        class EnCoder : MessageToByteEncoder<object>
+        {
+            private readonly Action<IChannelHandlerContext, object, IByteBuffer> action;
+
+            public EnCoder(Action<IChannelHandlerContext, object, IByteBuffer> action)
+            {
+                this.action = action;
+            }
+            protected override void Encode(IChannelHandlerContext context, object message, IByteBuffer output)
+            {
+                action(context, message, output);
             }
         }
 

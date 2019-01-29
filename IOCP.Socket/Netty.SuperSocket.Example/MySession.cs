@@ -15,10 +15,11 @@ namespace Netty.SuperSocket.Example
             await base.OnReceiveDataAsync(buffer);
         }
 
-        public override Task OnReceiveRequest(StringRequestInfo request)
+        public override async Task OnReceiveRequestAsync(StringRequestInfo request)
         { 
-            Console.WriteLine($"{request.Key}\t{request.Body}");
-            return base.OnReceiveRequest(request);
+            //Console.WriteLine($"{request.Key}\t{request.Body}");
+            await Send(request);
+            await base.OnReceiveRequestAsync(request);
         }
     }
 }

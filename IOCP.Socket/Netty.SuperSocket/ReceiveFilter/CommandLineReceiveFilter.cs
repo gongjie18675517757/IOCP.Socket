@@ -18,11 +18,13 @@ namespace Netty.SuperSocket.ReceiveFilter
             this.encoding = encoding;
             this.requestInfoParser = requestInfoParser;
         }
+
         public CommandLineReceiveFilter()
         {
             encoding = Encoding.UTF8;
             requestInfoParser = new BasicRequestInfoParser(":", ",");
         }
+
         public StringRequestInfo Decode(IByteBuffer buffer)
         {
             var readerIndex = buffer.ReaderIndex;
@@ -51,7 +53,8 @@ namespace Netty.SuperSocket.ReceiveFilter
 
         public void Encode(IByteBuffer byteBuffer, StringRequestInfo requestInfo)
         {
-            requestInfoParser.Encode(byteBuffer,requestInfo);
+            var str = requestInfoParser.Encode(requestInfo);
+            byteBuffer.WriteString(str, encoding);
         }
     }
 }

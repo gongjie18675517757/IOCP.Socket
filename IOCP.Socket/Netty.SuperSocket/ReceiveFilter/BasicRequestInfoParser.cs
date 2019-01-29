@@ -17,6 +17,7 @@ namespace Netty.SuperSocket.ReceiveFilter
             this.spliter = spliter;
             this.parameterSpliter = parameterSpliter;
         }
+
         public StringRequestInfo Decode(string source)
         {
             var arr = source.Split(spliter.ToCharArray());
@@ -28,7 +29,7 @@ namespace Netty.SuperSocket.ReceiveFilter
             };
         }
 
-        public void Encode(IByteBuffer byteBuffer, StringRequestInfo requestInfo)
+        public string Encode(StringRequestInfo requestInfo)
         {
             var stringBuild = new StringBuilder();
             stringBuild.Append(requestInfo.Key);
@@ -39,7 +40,7 @@ namespace Netty.SuperSocket.ReceiveFilter
                 if (i != requestInfo.Body.Length - 1)
                     stringBuild.Append(parameterSpliter);
             }
-            byteBuffer.WriteString(stringBuild.ToString(), encoding); 
+            return stringBuild.ToString();
         }
     }
 }

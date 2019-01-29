@@ -48,6 +48,11 @@ namespace Netty.SuperSocket
         public Task Send(IByteBuffer buffer) => Channel.WriteAndFlushAsync(buffer);
 
         /// <summary>
+        /// 发送数据
+        /// </summary> 
+        public Task Send(TRequest request) => Channel.WriteAndFlushAsync(request);
+
+        /// <summary>
         /// 收到数据
         /// </summary> 
         public virtual Task OnReceiveDataAsync(IByteBuffer buffer)
@@ -59,7 +64,7 @@ namespace Netty.SuperSocket
         /// <summary>
         /// 收到请求
         /// </summary> 
-        public virtual Task OnReceiveRequest(TRequest request) => Task.CompletedTask;
+        public virtual Task OnReceiveRequestAsync(TRequest request) => Task.CompletedTask;
 
 
         public virtual Task OnClosed()

@@ -10,6 +10,6 @@ namespace Netty.SuperSocket.ReceiveFilter
     {
         TRequestInfo Decode(string source);
 
-        void Encode(DotNetty.Buffers.IByteBuffer byteBuffer, StringRequestInfo requestInfo);
+        string Encode(StringRequestInfo requestInfo);
     }
 }
