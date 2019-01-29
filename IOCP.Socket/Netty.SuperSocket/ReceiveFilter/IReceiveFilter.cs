@@ -6,6 +6,8 @@ namespace Netty.SuperSocket.ReceiveFilter
 {
     public interface IReceiveFilter<TRequestInfo> where TRequestInfo : IRequestInfo
     {
-        Task<TRequestInfo> Filter(IByteBuffer  byteBuffer); 
+        TRequestInfo Decode(IByteBuffer byteBuffer);
+
+        void Encode(IByteBuffer byteBuffer, TRequestInfo requestInfo);
     }
 }

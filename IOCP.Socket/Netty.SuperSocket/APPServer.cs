@@ -6,6 +6,7 @@ using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
 using Microsoft.Extensions.Options;
 using Netty.SuperSocket.Config;
+using Netty.SuperSocket.ReceiveFilter;
 using Netty.SuperSocket.RequestInfo;
 using System;
 using System.Collections.Concurrent;
@@ -134,7 +135,7 @@ namespace Netty.SuperSocket
                 {
                     IChannelPipeline pipeline = channel.Pipeline;
                     pipeline.AddLast(new ArrayToByteEncoder(), new ArraySegmentToByteEnCoder());
-                    pipeline.AddLast(new SessionHandler(ChannelActive, ChannelInactive, ChannelRead));
+                    pipeline.AddLast(new DeCoder(DeCodeRequestInfo), new SessionHandler(ChannelActive, ChannelInactive, ChannelRead));
                 }));
 
             foreach (var item in option.Listeners.Split(new char[] { ';' }))
@@ -193,6 +194,11 @@ namespace Netty.SuperSocket
             }
         }
 
+        private object DeCodeRequestInfo(IChannelHandlerContext context, IByteBuffer buffer)
+        {
+            return new CommandLineReceiveFilter().Decode(buffer);
+        }
+
         /// <summary>
         /// 收到数据
         /// </summary>
@@ -204,6 +210,7 @@ namespace Netty.SuperSocket
 
             if (!allSession.TryGetValue(channelId, out var session))
                 return;
+
 
             if (message is IByteBuffer byteBuffer)
             {
@@ -220,8 +227,7 @@ namespace Netty.SuperSocket
             {
                 session.OnReceiveRequest(request);
             }
-        }
-
+        } 
 
         /// <summary>
         /// 收到新的连接
@@ -277,6 +283,22 @@ namespace Netty.SuperSocket
             protected override void Encode(IChannelHandlerContext context, ArraySegment<byte> message, IByteBuffer output)
             {
                 output.WriteBytes(message.Array, message.Offset, message.Count);
+            }
+        }
+
+        class DeCoder : ByteToMessageDecoder
+        {
+            private readonly Func<IChannelHandlerContext, IByteBuffer, object> func;
+
+            public DeCoder(Func<IChannelHandlerContext, IByteBuffer, object> func)
+            {
+                this.func = func;
+            }
+            protected override void Decode(IChannelHandlerContext context, IByteBuffer input, List<object> output)
+            {
+                var obj = func(context, input);
+                if (obj != null)
+                    output.Add(obj);
             }
         }
 

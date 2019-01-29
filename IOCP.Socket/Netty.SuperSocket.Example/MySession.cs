@@ -1,5 +1,6 @@
 ﻿using DotNetty.Buffers;
 using Netty.SuperSocket.RequestInfo;
+using System;
 using System.Threading.Tasks;
 
 namespace Netty.SuperSocket.Example
@@ -10,8 +11,14 @@ namespace Netty.SuperSocket.Example
         {
             //var bytes = new byte[] { 0x01, 0x02 };
             //var buffer = e.ReadBytes(e.ReadableBytes);
-             await Send(buffer); 
+            await Send(buffer);
             await base.OnReceiveDataAsync(buffer);
+        }
+
+        public override Task OnReceiveRequest(StringRequestInfo request)
+        { 
+            Console.WriteLine($"{request.Key}\t{request.Body}");
+            return base.OnReceiveRequest(request);
         }
     }
 }
