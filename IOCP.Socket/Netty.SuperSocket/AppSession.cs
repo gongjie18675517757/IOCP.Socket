@@ -31,6 +31,8 @@ namespace Netty.SuperSocket
         /// </summary>
         internal IChannel Channel { get; set; }
 
+          
+
         /// <summary>
         /// 远程终结点
         /// </summary>

@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Netty.SuperSocket.Config;
+using Netty.SuperSocket.ReceiveFilter;
+using Netty.SuperSocket.RequestInfo;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -37,6 +39,7 @@ namespace Netty.SuperSocket.Example
                        services.AddOptions();
                        var x = hostContext.Configuration.GetSection("ServerConfig").ToString();
                        services.Configure<ServerConfig>(hostContext.Configuration.GetSection("ServerConfig"));
+                       //services.AddTransient<IReceiveFilterFactory<MySession, StringRequestInfo>>(r => new CommandLineReceiveFilterFactory<MySession>());
                        services.AddTransient<MyServer>();
                    })
                    .UseServiceProviderFactory(new ServiceProviderFactory())

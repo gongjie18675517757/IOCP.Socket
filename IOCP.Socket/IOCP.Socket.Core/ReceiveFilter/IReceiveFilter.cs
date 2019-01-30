@@ -5,6 +5,6 @@ namespace IOCP.Socket.Core.ReceiveFilter
 {
     public interface IReceiveFilter<TRequestInfo> where TRequestInfo : IRequestInfo
     {
-        Task<TRequestInfo> Filter(PipeReader pipeReader); 
+       
     }
 }

@@ -6,10 +6,10 @@ namespace Netty.SuperSocket.ReceiveFilter
     /// 命令行解析
     /// </summary>
     /// <typeparam name="TRequestInfo"></typeparam>
-    public interface IRequestInfoParser<TRequestInfo> where TRequestInfo : IRequestInfo
+    public interface IRequestInfoParser<TRequestInfo,T> where TRequestInfo : IRequestInfo
     {
         TRequestInfo Decode(string source);
 
-        string Encode(StringRequestInfo requestInfo);
+        T Encode(StringRequestInfo requestInfo);
     }
 }

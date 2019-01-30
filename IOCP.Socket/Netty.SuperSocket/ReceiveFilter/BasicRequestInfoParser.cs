@@ -7,7 +7,7 @@ namespace Netty.SuperSocket.ReceiveFilter
     /// <summary>
     /// 基本命令解析
     /// </summary>
-    public class BasicRequestInfoParser : IRequestInfoParser<StringRequestInfo>
+    public class BasicRequestInfoParser : IRequestInfoParser<StringRequestInfo, string>
     {
         private readonly string spliter;
         private readonly string parameterSpliter;
@@ -34,10 +34,10 @@ namespace Netty.SuperSocket.ReceiveFilter
             var stringBuild = new StringBuilder();
             stringBuild.Append(requestInfo.Key);
             stringBuild.Append(spliter);
-            for (int i = 0; i < requestInfo.Body.Length; i++)
+            for (int i = 0; i < requestInfo.Args.Length; i++)
             {
-                stringBuild.Append(requestInfo.Body[i]);
-                if (i != requestInfo.Body.Length - 1)
+                stringBuild.Append(requestInfo.Args[i]);
+                if (i != requestInfo.Args.Length - 1)
                     stringBuild.Append(parameterSpliter);
             }
             return stringBuild.ToString();

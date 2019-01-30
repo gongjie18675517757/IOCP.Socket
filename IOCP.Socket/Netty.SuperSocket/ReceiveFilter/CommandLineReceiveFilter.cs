@@ -11,9 +11,9 @@ namespace Netty.SuperSocket.ReceiveFilter
     public class CommandLineReceiveFilter : IReceiveFilter<StringRequestInfo>
     {
         private readonly Encoding encoding;
-        private readonly IRequestInfoParser<StringRequestInfo> requestInfoParser;
+        private readonly IRequestInfoParser<StringRequestInfo, string> requestInfoParser;
 
-        public CommandLineReceiveFilter(Encoding encoding, IRequestInfoParser<StringRequestInfo> requestInfoParser)
+        public CommandLineReceiveFilter(Encoding encoding, IRequestInfoParser<StringRequestInfo, string> requestInfoParser)
         {
             this.encoding = encoding;
             this.requestInfoParser = requestInfoParser;
@@ -55,6 +55,7 @@ namespace Netty.SuperSocket.ReceiveFilter
         {
             var str = requestInfoParser.Encode(requestInfo);
             byteBuffer.WriteString(str, encoding);
+            byteBuffer.WriteString("\r\n", encoding);
         }
     }
 }

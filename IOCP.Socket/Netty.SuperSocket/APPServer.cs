@@ -20,12 +20,13 @@ using System.Threading.Tasks;
 
 namespace Netty.SuperSocket
 {
-    public abstract class APPServer<TSession, TRequest>
-        where TRequest : IRequestInfo
-        where TSession : AppSession<TSession, TRequest>, new()
+    public abstract class APPServer<TSession, TRequestInfo>
+        where TRequestInfo : IRequestInfo
+        where TSession : AppSession<TSession, TRequestInfo>, new()
     {
         private volatile int isRun;
         private readonly IOptions<ServerConfig> options;
+        private readonly IReceiveFilterFactory<TSession, TRequestInfo> receiveFilterFactory;
         private volatile int connectionCount;
         private volatile int sendBytesCount;
         private volatile int receiveBytesCount;
@@ -102,12 +103,13 @@ namespace Netty.SuperSocket
         /// <summary>
         /// 收到数据
         /// </summary>
-        public event EventHandler<DataEventArgs<TSession, TRequest>> ReceiveData;
+        public event EventHandler<DataEventArgs<TSession, TRequestInfo>> ReceiveData;
 
 
-        public APPServer(IOptions<ServerConfig> options)
+        public APPServer(IOptions<ServerConfig> options, IReceiveFilterFactory<TSession, TRequestInfo> receiveFilterFactory)
         {
             this.options = options;
+            this.receiveFilterFactory = receiveFilterFactory;
         }
 
         /// <summary>
@@ -196,15 +198,21 @@ namespace Netty.SuperSocket
 
         private object DeCodeRequestInfo(IChannelHandlerContext context, IByteBuffer buffer)
         {
-            return new CommandLineReceiveFilter().Decode(buffer);
+            var channelId = context.Channel.Id.AsShortText();
+            if (!allSession.TryGetValue(channelId, out var session))
+                return null;
+
+            return receiveFilterFactory.CreateFilter(session).Decode(buffer);
         }
 
         private void EnCodeRequestInfo(IChannelHandlerContext context, object obj, IByteBuffer buffer)
         {
-            if (obj is StringRequestInfo request)
-            {
-                new CommandLineReceiveFilter().Encode(buffer, request);
-            }
+            var channelId = context.Channel.Id.AsShortText();
+            if (!allSession.TryGetValue(channelId, out var session))
+                return;
+
+            if (obj is TRequestInfo request)
+                receiveFilterFactory.CreateFilter(session).Encode(buffer, request);
         }
 
         /// <summary>
@@ -223,7 +231,7 @@ namespace Netty.SuperSocket
             if (message is IByteBuffer byteBuffer)
             {
                 session.OnReceiveDataAsync(byteBuffer);
-                ReceiveData?.Invoke(this, new DataEventArgs<TSession, TRequest>()
+                ReceiveData?.Invoke(this, new DataEventArgs<TSession, TRequestInfo>()
                 {
                     ByteBuffer = byteBuffer,
                     Session = session
@@ -231,7 +239,7 @@ namespace Netty.SuperSocket
             }
 
             /*解析成请求*/
-            if (message is TRequest request)
+            if (message is TRequestInfo request)
             {
                 session.OnReceiveRequestAsync(request);
             }
@@ -304,9 +312,14 @@ namespace Netty.SuperSocket
             }
             protected override void Decode(IChannelHandlerContext context, IByteBuffer input, List<object> output)
             {
-                var obj = func(context, input);
-                if (obj != null)
-                    output.Add(obj);
+                while (true)
+                {
+                    var obj = func(context, input);
+                    if (obj != null)
+                        output.Add(obj);
+                    else
+                        return;
+                }
             }
         }
 
